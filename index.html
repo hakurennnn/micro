@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gas Monitor</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Include Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Firewatch</h1>
+
+        <!-- Gas Concentration Chart -->
+        <div class="card">
+            <div class="card-header">Gas Concentration Chart</div>
+            <div class="card-body">
+                <canvas id="gasChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Current Gas Value -->
+        <div class="card">
+            <div class="card-header">Current Gas Value</div>
+            <div class="card-body">
+                <p id="currentGasValue" class="font-weight-bold">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Anomaly Detection Status -->
+        <div class="card">
+            <div class="card-header">Anomaly Detection Status</div>
+            <div class="card-body">
+                <p id="anomalyStatus" class="font-weight-bold text-success">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Gas Sensor Status -->
+        <div class="card">
+            <div class="card-header">Gas Sensor Status</div>
+            <div class="card-body">
+                <p id="sensorStatus" class="font-weight-bold text-danger">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Your Socket.io script goes here -->
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js'></script>
+    <script>
+        var socket = io();
+
+        // Initialize an empty array to store data for the chart
+        var chartData = [];
+
+        // Get the canvas element and its context
+        var canvas = document.getElementById('gasChart');
+        var context = canvas.getContext('2d');
+
+        // Create a line chart
+        var gasChart = new Chart(context, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Gas Concentration',
+                    borderColor: 'blue',
+                    data: chartData,
+                    fill: false
+                }]
+            },
+            options: {
+                scales: {
+                    xAxes: [{
+                        type: 'linear',
+                        position: 'bottom'
+                    }],
+                    yAxes: [{
+                        ticks: {
+                            min: 0,
+                            max: 10,
+                            stepSize: 1
+                        }
+                    }]
+                }
+            }
+        });
+
+        // Update the gas sensor status and anomaly detection when received from the server
+        socket.on('sensorStatus', function (isSensorConnected) {
+            var sensorStatusElement = document.getElementById('sensorStatus');
+
+            if (isSensorConnected) {
+                sensorStatusElement.textContent = 'Gas Sensor Status: Connected';
+                sensorStatusElement.className = 'font-weight-bold text-success';
+            } else {
+                sensorStatusElement.textContent = 'Gas Sensor Status: Disconnected';
+                sensorStatusElement.className = 'font-weight-bold text-danger';
+            }
+        });
+
+        socket.on('gasData', function (data) {
+            console.log(data);
+
+            // Assuming data is the gas concentration value
+            var gasValueElement = document.getElementById('currentGasValue');
+
+            // Update the text content of the element with the received gas concentration value
+            gasValueElement.textContent = 'Current Gas Value: ' + data;
+
+            // Add the new data point to the chart
+            chartData.push(parseFloat(data));
+
+            // Update the chart labels
+            gasChart.data.labels = Array.from(Array(chartData.length).keys());
+
+            // Update the chart data
+            gasChart.data.datasets[0].data = chartData;
+
+            // Update the chart
+            gasChart.update();
+
+            // Check for anomaly detection
+            var anomalyStatusElement = document.getElementById('anomalyStatus');
+            if (data > 430) {
+                anomalyStatusElement.textContent = 'Anomaly Detected!';
+                anomalyStatusElement.className = 'font-weight-bold text-danger';
+            } else {
+                anomalyStatusElement.textContent = 'No Anomaly Detected';
+                anomalyStatusElement.className = 'font-weight-bold text-success';
+            }
+        });
+    </script>
+</body>
+</html>
